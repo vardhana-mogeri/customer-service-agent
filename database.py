@@ -4,6 +4,7 @@ import os
 import psycopg2
 from psycopg2 import sql
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
 
 # Load environment variables from .env file
@@ -18,6 +19,10 @@ DB_PORT = os.getenv("DB_PORT")
 
 # This is the graph name we will use for Apache AGE
 GRAPH_NAME = 'customer_support_graph'
+
+# Load the embedding model once to be used by the RAG function
+# This is efficient as it doesn't reload the model on every call.
+embedding_model = SentenceTransformer('all-MiniLM-L6v2')
 
 
 # --- DATABASE CONNECTION ---
@@ -52,3 +57,42 @@ def get_db_connection():
     except psycopg2.OperationalError as e:
         print(f"Error connecting to the database: {e}")
         return None
+
+# --- RAG: KNOWLEDGE BASE FUNCTIONS (pgvector) ---
+
+def query_vector_db(query_text: str, k: int = 3) -> list[dict]:
+    """
+    Queries the knowledge base for the most relevant chunks of text.
+
+    Args:
+        query_text: The user's query.
+        k: The number of results to return.
+
+    Returns:
+        A list of dictionaries, each containing the content, title, and url.
+    """
+    query_embedding = embedding_model.encode(query_text).tolist()
+    
+    conn = get_db_connection()
+    if not conn:
+        return []
+        
+    results = []
+    try:
+        with conn.cursor() as cursor:
+            # Note: The table name is pg_docs as per your setup
+            # The operator '<=>' calculates the L2 distance
+            cursor.execute(
+                "SELECT content, title, url FROM pg_docs ORDER BY embedding <=> %s LIMIT %s;",
+                (str(query_embedding), k)
+            )
+            rows = cursor.fetchall()
+            for row in rows:
+                results.append({"content": row[0], "title": row[1], "url": row[2]})
+    except Exception as e:
+        print(f"An error occurred during vector query: {e}")
+    finally:
+        if conn:
+            conn.close()
+            
+    return results
