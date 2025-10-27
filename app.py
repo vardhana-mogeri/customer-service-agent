@@ -1,38 +1,49 @@
 # app.py
+
 import streamlit as st
 from agent import get_agent_response
-import utils # For seeding data
 
 st.title("PostgreSQL AI Support Agent")
 
-# --- User Switching Logic ---
+# --- Session State Initialization ---
+# Initialize all session state variables at the top to avoid errors.
+
 if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 
+# Initialize the "working memory" for the active ticket.
+if 'active_ticket_id' not in st.session_state:
+    st.session_state.active_ticket_id = None
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --- User Switching Logic ---
 col1, col2 = st.columns(2)
 with col1:
     if st.button("Switch to User 1 (Has History)"):
         st.session_state.current_user = 1
-        st.session_state.session_id = "session_user_1" # A unique session ID
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
-        # Here you might load history from the DB, or just start fresh
+        # A unique session ID
+        st.session_state.session_id = "session_user_1"
+        # Reset chat history 
+        st.session_state.messages = [] 
+        # Reset the active ticket when switching users to prevent context leaks.
+        st.session_state.active_ticket_id = None
         st.rerun()
 
 with col2:
     if st.button("Switch to User 2 (New User)"):
         st.session_state.current_user = 2
         st.session_state.session_id = "session_user_2"
-        st.session_state.messages = [] # Start with a clean slate
+        # Reset chat history
+        st.session_state.messages = [] 
+        # Reset the active ticket here as well.
+        st.session_state.active_ticket_id = None
         st.rerun()
 
 # --- Main Chat Interface ---
 if st.session_state.current_user:
     st.header(f"Conversation with User {st.session_state.current_user}")
-
-    # Initialize chat history for the session
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
 
     # Display chat messages from history
     for message in st.session_state.messages:
@@ -41,7 +52,7 @@ if st.session_state.current_user:
 
     # Accept user input
     if prompt := st.chat_input("How can I help you with PostgreSQL?"):
-        # Add user message to session state and display
+        # Add user message to session state and display it
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -49,11 +60,16 @@ if st.session_state.current_user:
         # Get agent response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = get_agent_response(
+                response, new_active_ticket_id = get_agent_response(
                     st.session_state.current_user,
                     st.session_state.session_id,
-                    prompt
+                    prompt,
+                    st.session_state.active_ticket_id # Pass the current state IN
                 )
+                
+                # This is how the agent maintains its "working memory" for the next turn.
+                st.session_state.active_ticket_id = new_active_ticket_id
+                
                 st.markdown(response)
         
         # Add agent response to session state

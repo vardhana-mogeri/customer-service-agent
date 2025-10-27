@@ -1,35 +1,58 @@
 # llm_client.py
 
 import groq
-import os
 import json
+from typing import Dict, Any
 
 class LlmClient:
+    """A client for interacting with the Groq API, optimized for a two-model strategy.
+
+    This class serves as an abstraction layer over the raw `groq.Groq` client,
+    tailoring API calls for specific tasks within the conversational agent. It is
+    responsible for:
+    1.  Making the actual API calls to the Large Language Models (LLMs).
+    2.  Directing requests to the appropriate model (a fast, small model for
+        structured tasks, and a powerful, large model for response generation).
+    3.  Handling potential errors, such as API failures or invalid JSON output,
+        and providing safe fallback responses.
     """
-    A client for interacting with the Groq API.
-    This class is responsible for making the actual API calls to the LLMs.
-    It is designed to be generic, taking prompts from the agent and returning
-    the raw model output.
-    """
-    def __init__(self, api_key):
+    def __init__(self, api_key: str):
+        """Initializes the LlmClient with the necessary API key.
+
+        Args:
+            api_key (str): The Groq API key used to authenticate with the service.
+
+        Raises:
+            ValueError: If the provided `api_key` is empty or None.
+        """
         if not api_key:
             raise ValueError("Groq API key is required.")
         self.client = groq.Groq(api_key=api_key)
 
-    def generate_intent(self, system_prompt: str, user_prompt: str) -> dict:
-        """
-        Uses the fast Llama 3 8B model for structured intent classification.
+    def generate_intent(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
+        """Performs structured intent classification using a fast, small LLM.
+
+        This method is optimized for speed and accuracy in a classification task.
+        It uses Groq's `llama-3.1-8b-instant` model with forced JSON output and zero
+        temperature to get a deterministic, machine-readable classification of the
+        user's intent.
+
+        If the LLM fails to produce valid JSON or if an API error occurs, this
+        method provides a safe fallback response to prevent the agent from crashing.
 
         Args:
-            system_prompt: The "constitution" for the model (e.g., "You are a JSON expert...").
-            user_prompt: The specific "command" for the model (e.g., "Analyze this query...").
+            system_prompt (str): The system prompt that defines the rules and
+                expected JSON schema for the classification task.
+            user_prompt (str): The user's query that needs to be classified.
 
         Returns:
-            A dictionary containing the parsed JSON response from the model.
+            Dict[str, Any]: A dictionary containing the classified intent and any
+            extracted entities (e.g., 'ticket_id'). On failure, returns a default
+            dictionary: `{"intent": "general_question", "ticket_id": None}`.
         """
         try:
             response = self.client.chat.completions.create(
-                model="llama3-8b-8192",  # The fast model for classification
+                model="llama-3.1-8b-instant",  # The fast model for classification
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -49,24 +72,34 @@ class LlmClient:
 
 
     def generate_response(self, system_prompt: str, user_prompt: str) -> str:
-        """
-        Uses the powerful Llama 3 70B model for synthesizing a response from context.
+        """Generates a conversational response using a powerful, large LLM.
+
+        This method is designed for high-quality, context-aware response synthesis.
+        It uses Groq's `llama-3.3-70b-versatile` model, which has strong reasoning
+        capabilities, to generate a human-like response based on the provided
+        context and instructions in the prompts.
+
+        If any API error occurs, it returns a user-friendly error message to be
+        displayed directly in the chat interface.
 
         Args:
-            system_prompt: The persona and rules for the RAG response.
-            user_prompt: The context and user query for the model to synthesize.
+            system_prompt (str): The system prompt that defines the agent's persona,
+                rules, and instructions for how to use the provided context.
+            user_prompt (str): The complete context (e.g., ticket data, knowledge
+                base articles, conversation history) and the user's original query.
 
         Returns:
-            A string containing the generated response.
+            str: A string containing the generated conversational response.
+            On failure, returns a generic error message for the user.
         """
         try:
             response = self.client.chat.completions.create(
-                model="llama3-70b-8192",  # The powerful model for synthesis
+                model="llama-3.3-70b-versatile",  # The powerful model for synthesis
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.1,  # A little creativity, but keep it factual
+                temperature=0.1,  # A little creativity, but keeping it factual
                 max_tokens=1024
             )
             return response.choices[0].message.content
