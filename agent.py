@@ -162,20 +162,36 @@ def get_agent_response(
             context += "User's Ticket History: This user has no tickets on record.\n"
     
     elif intent == "ticket_creation_request":
+        # Initialize final_response for this block
+        final_response = ""
+        
+        # Step 1: Find the last thing the user said, which is the problem description.
         last_user_message = None
         if history:
+            # Iterate backwards through history to find the last message from the 'user'
+            # We skip the most recent one, which is the "create a ticket" request itself.
             for message in reversed(history):
                 if message.get("author") == "user":
                     last_user_message = message.get("text")
                     break
         
+        # Step 2: Check if we have a valid problem description to create a ticket from.
         if last_user_message:
+            # Step 3: Perform the action - create the ticket in the database.
             new_ticket_id = db.create_ticket(user_id, last_user_message)
-            final_response = f"I've created a new ticket for you with ID: {new_ticket_id}. Our support team will look into it shortly." if new_ticket_id else "I'm sorry, I encountered an error and couldn't create a ticket. Please try again."
-            if new_ticket_id: active_ticket_id_for_turn = new_ticket_id
+            
+            # Step 4: Formulate a response based on whether the action was successful.
+            if new_ticket_id:
+                final_response = f"I've created a new ticket for you with ID: {new_ticket_id}. Our support team will look into it shortly."
+                # Set the newly created ticket as the active one for the next turn.
+                active_ticket_id_for_turn = new_ticket_id
+            else:
+                final_response = "I'm sorry, I encountered an error and couldn't create a ticket. Please try again."
         else:
+            # This is a fallback if we can't find the context of the problem.
             final_response = "I'm sorry, I couldn't find a previous problem description to create a ticket from. Please describe your issue first."
             
+        # --- IMPORTANT: We have handled the action, so update memory and return early ---
         db.add_message_to_graph(user_id, session_id, user_query, "user")
         db.add_message_to_graph(user_id, session_id, final_response, "agent")
         return final_response, active_ticket_id_for_turn
