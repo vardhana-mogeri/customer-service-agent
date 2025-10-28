@@ -1,0 +1,19 @@
+Assumptions:
+
+Architectural:
+1. The PostgreSQL database, the Groq LLM API, and all network connections are assumed to be available and performant.
+2. Stateful memory is critical. I assumed a stateless agent would be insufficient and implemented both short-term (active_ticket_id) and long-term (Graph Database) memory.
+3. The Intent-First architecture is the most efficient model for orchestrating the distinct tasks required by this agent.
+
+Knowledge Base:
+1. Vector similarity (via the all-MiniLM-L6-v2 model) is a reliable proxy for semantic relevance in the RAG lookup.
+2. The document chunking strategy is effective at creating self-contained, meaningful segments for the RAG process.
+
+AI and LLM:
+1. The LLM (Groq's Llama 3) can reliably adhere to the complex, rule-based instructions in the system prompt.
+2. The smaller, faster LLM can accurately classify user intent and refine queries for the vector database.
+   
+Usage:
+1. The primary mode of user interaction is text-based.
+2. Users are authenticated (i.e., we have a user_id).
+3. API usage will remain within the Groq free tier limit of 30 RPM for this prototype.

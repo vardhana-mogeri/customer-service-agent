@@ -1,0 +1,7 @@
+ticket_id,user_id,description,log
+T-007,1,"Client connections are failing with 'FATAL: password authentication failed'","2025-10-26T10:00:00Z: User reported connection failure. Password seems correct but authentication fails."
+TICKET-C0F5F21D,1,"My database is slow.","2025-10-25T14:55:33Z: Ticket created by agent."
+T-006,1,"Client connections are failing with 'FATAL: password authentication failed'","2025-10-24T09:00:00Z: Issue reported again."
+T-005,1,"Client connections are failing with 'FATAL: password authentication failed'","2025-10-23T11:30:00Z: User still experiencing issues."
+T-123,2,"How do I enable SSL/TLS for my database connection?","2025-10-27T08:00:00Z: User asked for security configuration help."
+T-004,1,"Need to optimize a query with a large table scan.","2025-10-22T15:00:00Z: Performance issue reported by user."

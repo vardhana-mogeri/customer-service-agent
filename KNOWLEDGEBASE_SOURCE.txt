@@ -1,0 +1,5 @@
+The knowledge base for this project was created by scraping the official PostgreSQL v15 documentation.
+
+The raw text was cleaned, chunked, and then processed to generate 384-dimension vector embeddings using the 'all-MiniLM-L6-v2' sentence-transformer model.
+
+The final, ready-to-ingest data is provided in the 'mock_data/knowledge_base_with_embeddings.csv' file.
