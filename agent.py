@@ -160,6 +160,16 @@ def get_agent_response(
             print(f"INFO: Added full ticket history. Set active ticket to {active_ticket_id_for_turn} for next turn.")
         else:
             context += "User's Ticket History: This user has no tickets on record.\n"
+
+    elif intent == "conversation_history_inquiry":
+        # The history is already fetched at the beginning of the function.
+        # We just need to add it to the context for the final LLM.
+        if history:
+            context += f"The user's recent conversation history is: {json.dumps(history)}\n"
+        else:
+            context += "There is no conversation history for this session yet.\n"
+        # We don't need to do a RAG search for this, so we can clear the search query.
+        search_query = ""
     
     elif intent == "ticket_creation_request":
         # Initialize final_response for this block
@@ -226,15 +236,16 @@ def get_agent_response(
 
     Here are your rules in order of priority:
     1.  **List All Tickets:** If the user asks for their tickets and the Context contains "The user's complete ticket history", you MUST list all the tickets provided. Start your response with a friendly phrase like "Here is a list of your tickets:" and format them clearly using a bulleted list.
-    2.  **Summarize Single Tickets:** If the Context contains "Ticket Information" or "CURRENT ACTIVE TICKET CONTEXT", summarize the ticket's status and description for the user.
-    3.  **Answer from Knowledge Base (Provide Solutions, Not Just Links):** If the Context contains "Relevant Knowledge Base Articles", your main goal is to act as an expert who has read them.
+    2.  **Summarize Conversation:** If the user asks about their past questions (e.g., "what did I ask?") and the Context contains "The user's recent conversation history", you MUST summarize the 'user' messages from that history.
+    3.  **Summarize Single Tickets:** If the Context contains "Ticket Information" or "CURRENT ACTIVE TICKET CONTEXT", summarize the ticket's status and description for the user.
+    4.  **Answer from Knowledge Base (Provide Solutions, Not Just Links):** If the Context contains "Relevant Knowledge Base Articles", your main goal is to act as an expert who has read them.
         - You MUST synthesize a direct answer by summarizing the key information and steps from the article 'content'.
         - Explain the potential solutions to the user in your own words.
         - **DO NOT just provide a list of links.** Your primary response must be the explanation.
         - You MAY include the URL at the end of your explanation as a reference for the user to learn more, but the answer itself comes first.
-    4.  **Handle New Issues (Offer to Create a Ticket):** If the user describes a new issue and the provided articles do not seem to solve their specific problem, you MUST acknowledge this and then offer to create a ticket for them. For example: "I found some articles about server setup and authentication, but they might not solve your specific installation issue. Would you like me to create a ticket for this?"
-    5.  **Fallback:** If, after following all the rules above, you genuinely cannot find any relevant information in the context to answer the query, you should say: "I'm sorry, I couldn't find specific information on that topic in my knowledge base."
-    6.  **Style:** Never mention the words "Context" or "Knowledge Base" in your response. Be friendly and helpful.
+    5.  **Handle New Issues (Offer to Create a Ticket):** If the user describes a new issue and the provided articles do not seem to solve their specific problem, you MUST acknowledge this and then offer to create a ticket for them. For example: "I found some articles about server setup and authentication, but they might not solve your specific installation issue. Would you like me to create a ticket for this?"
+    6.  **Fallback:** If, after following all the rules above, you genuinely cannot find any relevant information in the context to answer the query, you should say: "I'm sorry, I couldn't find specific information on that topic in my knowledge base."
+    7.  **Style:** Never mention the words "Context" or "Knowledge Base" in your response. Be friendly and helpful.
     """
     rag_user_prompt = f"""Context:\n---\n{context}\n---\nUser's Query: {user_query}\n\nBased ONLY on the context provided, generate a helpful and concise response according to your rules."""
     
